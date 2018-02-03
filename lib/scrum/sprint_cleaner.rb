@@ -2,7 +2,7 @@ module Scrum
   class SprintCleaner < TrelloService
     include ScrumBoards
 
-    def cleanup(board_id, target_board_id)
+    def cleanup(board_id, target_board_id,labelled)
       @board = sprint_board(board_id)
       raise "backlog list '#{@board.backlog_list_name}' not found on sprint board" unless @board.backlog_list
       @target_board = Trello::Board.find(target_board_id)
@@ -10,9 +10,9 @@ module Scrum
 
       gen_burndown
 
-      move_cards(@board.backlog_list)
-      move_cards(@board.doing_list) if @board.doing_list
-      move_cards(@board.qa_list) if @board.qa_list
+      move_cards(@board.backlog_list,labelled)
+      move_cards(@board.doing_list,labelled) if @board.doing_list
+      move_cards(@board.qa_list,labelled) if @board.qa_list
     end
 
     private
@@ -39,6 +39,10 @@ module Scrum
       card.remove_label(label) if label
     end
 
+    def add_in_last_sprint_label(card)
+      card.add_label('in last sprint')
+    end
+
     def move_cards(source_list)
       source_list.cards.each do |card|
         next if @board.sticky?(card)
@@ -46,6 +50,7 @@ module Scrum
         card.members.each { |member| card.remove_member(member) }
         remove_waterline_label(card)
         remove_unplanned_label(card)
+        add_in_last_sprint_label(card) if labelled == 'True'
         card.move_to_board(@target_board, target_list)
       end
     end
